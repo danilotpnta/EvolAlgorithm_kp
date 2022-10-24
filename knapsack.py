@@ -58,7 +58,9 @@ if __name__ == '__main__':
     print(f"- weights: {kp.weights}")
     print(f"- capacity: {kp.caprepacity}")
 
+    #passing ind only kp
     ind = Individual(kp)
     print(f"- list: {ind.order}")
+
 
     fitness(kp, ind)
