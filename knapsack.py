@@ -62,5 +62,4 @@ if __name__ == '__main__':
     ind = Individual(kp)
     print(f"- list: {ind.order}")
 
-
     fitness(kp, ind)
