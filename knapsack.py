@@ -49,10 +49,8 @@ class Individual:
         if order is not None:
             self.order = order
 
-
 '''Computes the objective value of the given individual
 for the given kanpsack problem instance'''
-
 def fitness(kp, ind):
     value = 0.0
     remainCapac = kp.capacity
@@ -80,7 +78,6 @@ def inKnapsack(kp, ind):
 
     #returns items in kp for specific ind
     return kpItems
-
 
 '''Solve a knapsack problem instance using an evolutionary algorithm'''
 def KnapsackEA(kp, p):
@@ -141,8 +138,7 @@ def initialize(kp, lambdaa) -> list[Individual]:
     # print(ListOfInd)
     return ListOfInd
 
-
-'''slect rnd two indices of ind & swap them. ind is a list []'''
+'''select rnd two indices of ind & swap them. ind is a list []'''
 def mutate(ind):
 
     # swaps if rand [0,1) < 0.05
@@ -151,7 +147,7 @@ def mutate(ind):
         i2 = random.randint(0, len(ind.order)-1)
         ind.order[i1],ind.order[i2] = ind.order[i2], ind.order[i1]
 
-#def recombination(p1: Individual, p2: Individual) --> Individual:
+'''selects two parents and produce an offsrpign'''
 def recombination(kp, p1: Individual, p2: Individual) -> Individual:
     set1 = np.array(inKnapsack(kp, p1))
     set2 = np.array(inKnapsack(kp, p2))
@@ -213,46 +209,26 @@ def elimination(kp, population, offspring, lambdaa):
     newPopulation = list(combined)
     best_fited = np.array([fitness(kp, ind) for ind in combined])
     newPopulation.sort(key = lambda x: fitness(kp,x), reverse = True )
-    # print(f'newPopulation:{newPopulation}')
-    #
-    # #best_fited = map(lambda x: fitness(kp,x) combined)
-    #
-    # # best individuals top lowest fittest bottwom
-    # best_fited[::-1].sort()
-    # best_fited[:lambdaa]
-    #
-    # print(f'best_fited:{best_fited[:lambdaa]}')
     # print(f'newPopulation:{newPopulation[best_fited]}')
     # print(f'len newPopulation:{len(newPopulation[:lambdaa])}')
     return newPopulation[:lambdaa]
 
-    #return best_fited[:lambdaa]
-
-def print_kp():
-    print()
-    print(f"THE KNAPSACK PROBLEM: ")
+def printKp(kp):
+    print(f"\nTHE KNAPSACK PROBLEM: ")
     # print(f"- values: {kp.values}")
     # print(f"- weights: {kp.weights}")
-    print(f"- capacity: {kp.capacity}")
-    print()
-
-
-if __name__ == '__main__':
-    # Lambda | k tourament | itr |
-    p = Parameters(200, 5, 100)
-    numObjects_InKnapsack = 200
-    kp = KnapsackProblem(numObjects_InKnapsack)
-
+    print(f"- capacity: {kp.capacity}\n")
     heuristic_order = np.arange(len(kp.values))
     heuristic_order_list = list(heuristic_order)
     heuristic_order_list.sort(key=lambda x: kp.values[x] / kp.weights[x], reverse=True)
     heurBest = Individual(kp, 0.0, np.array(heuristic_order_list))
-
-    print_kp()
     print(f"HEURISTIC: {fitness(kp, heurBest)}\n" )
 
+if __name__ == '__main__':
+    p = Parameters(200, 5, 100); N = 200  # Lambda | k-Tour | itr | NumbObjects
+    kp = KnapsackProblem(N)
+    printKp(kp)
     KnapsackEA(kp,p)
-
 
     #checking population & calc fitness of ind
     # population = initialize(kp, p.lambdaa)
@@ -267,16 +243,3 @@ if __name__ == '__main__':
     # for NumMuta in range(40):
     #     mutate(population[1])
     #     print(population[1].order)
-
-
-"""
-- Decreasing k means more selective pressure.
-- Increasing k in tourament will make Means Fitness converge quickly to
-Best Fitness, this means as well is exploring too much information
-- We want the Mean Fitness to converge to the Best Fitness
-- If we increase population size we also want to increase tournament size (k)
-- When we work with small Knapsacks size, we can outperform the heuristic (Best Fitness is better than heuristic)
-- We change capacity to 20% TotalWeights, meaning decrease the capacity,
-so in the kpsack can only fit the best best ones
--
-"""
