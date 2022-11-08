@@ -14,6 +14,13 @@ and their weights
 The goal is to maximize the total value of the selected objects, subject to a weight constraint W
 """
 
+class Parameters:
+    def __init__(self, lambdaa, k, iterations):
+        self.lambdaa     = lambdaa
+        self.mu          = lambdaa * 2
+        self.iterations  = iterations
+        self.k           = k
+
 class KnapsackProblem:
 
     def __init__(self, numObject):
@@ -25,11 +32,22 @@ class KnapsackProblem:
 class Individual:
 
     # order in which items are selected
-    def __init__(self, kp):
-        self.alphaa = 0.05
+    # def __init__(self, kp):
+    #     self.alphaa = 0.05
+    #     # creates an array [0 .. numObjects]
+    #     self.order = np.arange( len(kp.values))
+    #     np.random.shuffle(self.order)
+
+    def __init__(self, kp, alpha = None, order = None ):
         # creates an array [0 .. numObjects]
         self.order = np.arange( len(kp.values))
         np.random.shuffle(self.order)
+        #self.alphaa = 0.05
+        self.alphaa = max(0.01, 0.1 + 0.02 * np.random.randn())
+        if alpha is not None:
+            self.alpha = alpha
+        if order is not None:
+            self.order = order
 
 
 '''Computes the objective value of the given individual
@@ -39,13 +57,14 @@ def fitness(kp, ind):
     value = 0.0
     remainCapac = kp.capacity
 
+    # print(f'My Ind: {ind.order} ')
     for i in ind.order:
         if (kp.weights[i] <= remainCapac):
             value += kp.values[i]
             remainCapac -= kp.weights[i]
-            print(f"    - Ind {i} + weight: {kp.weights[i]}")
+            # print(f"    - Ind[{i}] has weight: {kp.weights[i]}")
 
-    print(f"- ObjValue of Ind:  {value}")
+    # print(f"- ObjValue of Ind:  {value}")
 
     #returns objective value for that specific combination
     return value
@@ -64,24 +83,22 @@ def inKnapsack(kp, ind):
 
 
 '''Solve a knapsack problem instance using an evolutionary algorithm'''
-def KnapsackEA(kp):
-    lambdaa = 2
-    mu = lambdaa * 2
-    iterations = 100
+def KnapsackEA(kp, p):
 
     # create indv1 [0 ....numObject] ... indv2 [0 ....numObject]
     # as many indv1 as lambdaa
-    population: List[Individual] = initialize(kp,lambdaa)
+    population: List[Individual] = initialize(kp, p.lambdaa)
 
-    for i in range(iterations):
+    print("{: >3} {: >15} {: >15} {: >15} {: >15} {: >30}".format(*("i", "Mean Fitness", "Best Fitness", "Carring", "IndFitness","Ind")))
+    for i in range(p.iterations):
 
         '''Recombination p1 & p2'''
         offspring: List[Individual] = list()
-        for j in range(mu):
-            p1 = selection(kp, population)
-            p2 = selection(kp, population)
+        for j in range(p.mu):
+            p1 = selection(kp, population, p.k)
+            p2 = selection(kp, population, p.k)
 
-            offspring.appen( recombination(p1, p2) )
+            offspring.append( recombination(kp, p1, p2) )
             mutate(offspring[j])
 
         '''Mutation ind = parent'''
@@ -89,13 +106,34 @@ def KnapsackEA(kp):
             mutate(ind)
 
         '''Elimination'''
-        population = elimination(kp, population, offspring)
+        population = elimination(kp, population, offspring, p.lambdaa)
 
         # calculate the objective value of each ind from population
         population_fitness  = [fitness(kp, ind) for ind in population]
-        print(f"- Mean fitness value population: {statistics.mean(population_fitness)}")
-        print(f"- Best fitness value population: {max(population_fitness)}")
+        indexOfind_maxFitness = population_fitness.index(max(population_fitness))
+        maxfitInd = population[indexOfind_maxFitness]
 
+        remainCapac = kp.capacity
+        value = 0.0
+        # print(f'My fitness Ind: {maxfitInd.order} ')
+        for ii in maxfitInd.order:
+            if (kp.weights[ii] <= remainCapac):
+                value += kp.values[ii]
+                remainCapac -= kp.weights[ii]
+
+        # print(f"- Carring Capacity:  {kp.capacity - remainCapac}")
+        carryngCapacity = kp.capacity - remainCapac
+        valuePrint = value
+
+        remainCapac = kp.capacity
+        value = 0.0
+
+        # print(f"- Mean fitness value population: {statistics.mean(population_fitness)}")
+        # print(f"- Best fitness value population: {max(population_fitness)}")
+
+        print("{: >3} {: >15.5f} {: >15.5f} {: >15.5f} {: >15.5f}".format(*(i, np.mean(population_fitness), max(population_fitness), carryngCapacity, valuePrint ) ))
+
+        # print("{: >3} {: >15.5f} {: >15.5f} {: >15.5f} {: >15.5f} {: >70}".format(*(i, np.mean(population_fitness), max(population_fitness), carryngCapacity, valuePrint,str(maxfitInd.order) ) ))
 
 '''create a list of individuals'''
 def initialize(kp, lambdaa) -> list[Individual]:
@@ -123,7 +161,7 @@ def recombination(kp, p1: Individual, p2: Individual) -> Individual:
     offspring = set1[ np.in1d(set1, set2) ] #to conserve the order
 
     # Copy symdiff to offsrping with 50% prob
-    sym_diff = np.setxor1d(set1,set2)]
+    sym_diff = [np.setxor1d(set1,set2)]
 
     for ind in sym_diff:
         if np.random.rand() < 0.5:
@@ -146,19 +184,44 @@ def recombination(kp, p1: Individual, p2: Individual) -> Individual:
     alpha = 1 --> p2
     alpha = 0.5 --> p2 .0.5
 
-    p1*alphaa + (p2*alphaa - p1*alphaa)
+    p1*alphaa + (p2*alphaa - p1*alphaa)x
 
     beta [-0.5 and 3.5 ]
     '''
 
     beta = 2 * np.random.random() - 0.5
-    alpha = p1.alpha + beta * (p2.alpha - p1.alpha)
+    alpha = p1.alphaa + beta * (p2.alphaa - p1.alphaa)
 
-    return Individual(len(kp.values), alpha, offspring)
+    return Individual( kp, alpha, order)
 
+''' k-tourament selection '''
+def selection(kp, population, k):
+    # select k ind from pupulation
+    k = k
+    # select random ind from population
+    rnd_ind = random.choices(range(np.size(population, 0)), k = k)
+    fit_inds = np.array([fitness(kp, population[i]) for i in rnd_ind])
+    best_fit_indv = np.argmax(fit_inds)
+    return population[rnd_ind[best_fit_indv]]
 
-
-# def selection():
+''' lmanda + mu selection '''
+def elimination(kp, population, offspring, lambdaa):
+    combined = np.concatenate((population, offspring))
+    newPopulation = list(combined)
+    best_fited = np.array([fitness(kp, ind) for ind in combined])
+    newPopulation.sort(key = lambda x: fitness(kp,x), reverse = True )
+    # print(f'newPopulation:{newPopulation}')
+    #
+    # #best_fited = map(lambda x: fitness(kp,x) combined)
+    #
+    # # best individuals top lowest fittest bottwom
+    # best_fited[::-1].sort()
+    # best_fited[:lambdaa]
+    #
+    # print(f'best_fited:{best_fited[:lambdaa]}')
+    # print(f'newPopulation:{newPopulation[best_fited]}')
+    return newPopulation
+    #return best_fited[:lambdaa]
 
 def print_kp():
     print()
@@ -170,21 +233,30 @@ def print_kp():
 
 
 if __name__ == '__main__':
-
-    numObjects_InKnapsack = 10
+    # Lambda | k tourament | itr |
+    p = Parameters(100, 3, 100)
+    numObjects_InKnapsack = 50
     kp = KnapsackProblem(numObjects_InKnapsack)
+
+    heuristic_order = np.arange(len(kp.values))
+    heuristic_order_list = list(heuristic_order)
+    heuristic_order_list.sort(key=lambda x: kp.values[x] / kp.weights[x], reverse=True)
+    heurBest = Individual(kp, 0.0, np.array(heuristic_order_list))
+    print("Heuristic objective value=", fitness(kp, heurBest))
+
+
     print_kp()
-    #kpEA = KnapsackEA(kp)
+    KnapsackEA(kp,p)
 
 
     #checking population & calc fitness of ind
-    population = initialize(kp,4)
-    i = 0
-    for ind in population:
-        print(f"- Order ind{[i]}: {ind.order}")
-        fitness(kp, ind)
-        print(inKnapsack(kp,ind))
-        i += 1
+    # population = initialize(kp, p.lambdaa)
+    # i = 0
+    # for ind in population:
+    #     print(f"- Order ind{[i]}: {ind.order}")
+    #     fitness(kp, ind)
+    #     print(inKnapsack(kp,ind))
+    #     i += 1
 
     # checking if mutation works
     # for NumMuta in range(40):
