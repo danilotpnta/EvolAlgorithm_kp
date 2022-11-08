@@ -26,7 +26,7 @@ class KnapsackProblem:
     def __init__(self, numObject):
         self.values = 2 ** np.random.randn(numObject)
         self.weights = 2 ** np.random.randn(numObject)
-        self.capacity = 0.25 * np.sum(self.weights)
+        self.capacity = 0.2 * np.sum(self.weights)
 
 ''' Candidate Solution Representation '''
 class Individual:
@@ -156,12 +156,15 @@ def recombination(kp, p1: Individual, p2: Individual) -> Individual:
     set1 = np.array(inKnapsack(kp, p1))
     set2 = np.array(inKnapsack(kp, p2))
 
-    # Copy inters to offsrping with 100% prob
+    # Copy intersection between parents to offsrping with 100% prob
     #offspring = np.intersect1d(set1, set2)
     offspring = set1[ np.in1d(set1, set2) ] #to conserve the order
 
-    # Copy symdiff to offsrping with 50% prob
-    sym_diff = [np.setxor1d(set1,set2)]
+    # For remaining elements (from both parents) that were not interseption copy
+    # to offspring with 50% probability
+
+    # Copy symetric difference or A - B to offspring with 50% prob
+    sym_diff = np.setxor1d(set1,set2)
 
     for ind in sym_diff:
         if np.random.rand() < 0.5:
@@ -220,32 +223,34 @@ def elimination(kp, population, offspring, lambdaa):
     #
     # print(f'best_fited:{best_fited[:lambdaa]}')
     # print(f'newPopulation:{newPopulation[best_fited]}')
-    return newPopulation
+    # print(f'len newPopulation:{len(newPopulation[:lambdaa])}')
+    return newPopulation[:lambdaa]
+
     #return best_fited[:lambdaa]
 
 def print_kp():
     print()
     print(f"THE KNAPSACK PROBLEM: ")
-    print(f"- values: {kp.values}")
-    print(f"- weights: {kp.weights}")
+    # print(f"- values: {kp.values}")
+    # print(f"- weights: {kp.weights}")
     print(f"- capacity: {kp.capacity}")
     print()
 
 
 if __name__ == '__main__':
     # Lambda | k tourament | itr |
-    p = Parameters(100, 3, 100)
-    numObjects_InKnapsack = 50
+    p = Parameters(200, 5, 100)
+    numObjects_InKnapsack = 200
     kp = KnapsackProblem(numObjects_InKnapsack)
 
     heuristic_order = np.arange(len(kp.values))
     heuristic_order_list = list(heuristic_order)
     heuristic_order_list.sort(key=lambda x: kp.values[x] / kp.weights[x], reverse=True)
     heurBest = Individual(kp, 0.0, np.array(heuristic_order_list))
-    print("Heuristic objective value=", fitness(kp, heurBest))
-
 
     print_kp()
+    print(f"HEURISTIC: {fitness(kp, heurBest)}\n" )
+
     KnapsackEA(kp,p)
 
 
@@ -262,3 +267,16 @@ if __name__ == '__main__':
     # for NumMuta in range(40):
     #     mutate(population[1])
     #     print(population[1].order)
+
+
+"""
+- Decreasing k means more selective pressure.
+- Increasing k in tourament will make Means Fitness converge quickly to
+Best Fitness, this means as well is exploring too much information
+- We want the Mean Fitness to converge to the Best Fitness
+- If we increase population size we also want to increase tournament size (k)
+- When we work with small Knapsacks size, we can outperform the heuristic (Best Fitness is better than heuristic)
+- We change capacity to 20% TotalWeights, meaning decrease the capacity,
+so in the kpsack can only fit the best best ones
+-
+"""
